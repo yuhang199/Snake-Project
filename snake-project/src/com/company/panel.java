@@ -12,19 +12,22 @@ import java.awt.event.KeyListener;
 import java.io.InputStream;
 
 public class panel extends JPanel implements KeyListener, ActionListener {
-  private ImageIcon title;
-  private ImageIcon body;
-  private ImageIcon up;
-  private ImageIcon down;
-  private ImageIcon left;
-  private ImageIcon right;
-  private ImageIcon food;
-  private Snake snake;
+  private final ImageIcon title;
+  private final ImageIcon body;
+  private final ImageIcon up;
+  private final ImageIcon down;
+  private final ImageIcon left;
+  private final ImageIcon right;
+  private final ImageIcon food;
+  private final ImageIcon bonus;
+  private final ImageIcon poison;
+  private final Snake snake;
   private int score;
-  private Food snakeFood;
+  private int highest;
+  private final FoodDistribution foods;
   private boolean isStarted;
   private boolean isFailed;
-  private Timer timer;
+  private final Timer timer;
 
   public panel() throws LineUnavailableException {
     this.title = new ImageIcon("title.jpg");
@@ -34,25 +37,18 @@ public class panel extends JPanel implements KeyListener, ActionListener {
     this.left = new ImageIcon("left.png");
     this.right = new ImageIcon("right.png");
     this.food = new ImageIcon("food.png");
+    this.bonus = new ImageIcon("bonus.png");
+    this.poison = new ImageIcon("poison.png");
     this.snake = new Snake();
-    this.snakeFood = new Food();
+    this.foods = new FoodDistribution();
     this.isStarted = false;
     this.isFailed = false;
     this.score = 0;
+    this.highest = 0;
     this.setFocusable(true);
     this.addKeyListener(this);
     this.timer = new Timer(100, this);
     this.timer.start();
-    playBGM();
-  }
-
-  private void playBGM() {
-    try {
-    Clip bgm = AudioSystem.getClip();
-    InputStream is = this.getClass().getClassLoader().getResourceAsStream("")
-    }catch (LineUnavailableException e) {
-      e.printStackTrace();
-    }
   }
 
   public void paintComponent(Graphics g) {
@@ -62,6 +58,7 @@ public class panel extends JPanel implements KeyListener, ActionListener {
 
     g.fillRect(25, 75, 850, 600);
     g.setColor(Color.WHITE);
+    g.drawString("Highest: " + this.highest, 750, 35);
     g.drawString("Score: " + this.score, 750, 50);
 
     if (snake.getDirection() == Direction.RIGHT) {
@@ -80,7 +77,17 @@ public class panel extends JPanel implements KeyListener, ActionListener {
       body.paintIcon(this, g, snake.getBodyX(i), snake.getBodyY(i));
     }
 
-    food.paintIcon(this, g, snakeFood.getFoodX(), snakeFood.getFoodY());
+    for (int i = 0; i < foods.getSize(); ++i) {
+      if (this.foods.getFood(i).getName().equals("Normal")) {
+        food.paintIcon(this, g, foods.getFood(i).getFoodX(), foods.getFood(i).getFoodY());
+      }
+      if (this.foods.getFood(i).getName().equals("Bonus")) {
+        bonus.paintIcon(this, g, foods.getFood(i).getFoodX(), foods.getFood(i).getFoodY());
+      }
+      if (this.foods.getFood(i).getName().equals("Poison")) {
+        poison.paintIcon(this, g, foods.getFood(i).getFoodX(), foods.getFood(i).getFoodY());
+      }
+    }
 
     if (!this.isStarted) {
       g.drawString("Press Space To Start", 250, 500);
@@ -101,6 +108,7 @@ public class panel extends JPanel implements KeyListener, ActionListener {
       if (this.isFailed) {
         this.isFailed = false;
         this.snake.initSnake();
+        this.foods.initFoodDistribution();
         this.score = 0;
       } else {
         this.isStarted = !this.isStarted;
@@ -125,9 +133,9 @@ public class panel extends JPanel implements KeyListener, ActionListener {
     if (isStarted && !isFailed) {
       snake.moveSnake();
       if (eaten()) {
-        this.snake.incrementLen();
-        this.snakeFood = new Food();
-        score++;
+        if (this.score > this.highest) {
+          this.highest = this.score;
+        }
       }
       setFailed();
       repaint();
@@ -137,8 +145,11 @@ public class panel extends JPanel implements KeyListener, ActionListener {
   }
 
   public boolean eaten() {
-    if (this.snake.getHeadX() == this.snakeFood.getFoodX()
-        && this.snake.getHeadY() == this.snakeFood.getFoodY()) {
+    int index = this.foods.contains(this.snake.getHeadX(), this.snake.getHeadY());
+    if (index != -1) {
+      this.snake.setLen(foods.getFoodPoint(index));
+      this.score += foods.getFoodPoint(index);
+      this.foods.setFood(index);
       return true;
     }
     return false;
@@ -150,6 +161,9 @@ public class panel extends JPanel implements KeyListener, ActionListener {
           && this.snake.getHeadY() == this.snake.getBodyY(i)) {
         this.isFailed = true;
       }
+    }
+    if (this.snake.getLen() == 0) {
+      this.isFailed = true;
     }
   }
 }
